@@ -46,7 +46,7 @@ def login_ok():
 def exige_acesso(funcao):
     @wraps(funcao)
     def interna(*args, **kwargs):
-        if not acesso_ok():
+        if not acesso():
             return jsonify(erro="Digite o código de acesso.", tipo="acesso"), 401
         return funcao(*args, **kwargs)
     return interna

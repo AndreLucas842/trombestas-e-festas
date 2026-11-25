@@ -217,7 +217,7 @@ def buscar_membros():
 # ---------------------------------------------------------------------
 @app.get("/api/sessao")
 def sessao():
-    return jsonify(acesso=acesso_ok(), logado=login_ok())
+    return jsonify(acesso=acesso(), logado=login_ok())
 
 
 @app.post("/api/acesso")

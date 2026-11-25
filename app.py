@@ -178,8 +178,8 @@ def registrar_membros():
         cur = conn.cursor()
         # Quantidade total de membros presentes (sem grupo): grupo_id fica vazio.
         cur.execute(
-            "INSERT INTO contagem_membros (grupo_id, quantidade) VALUES (NULL, %s)", (qtd,)
-        )
+    "INSERT INTO contagem_membros (quantidade) VALUES (%s)", (qtd,)
+)
         conn.commit()
         return jsonify(ok=True)
     finally:

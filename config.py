@@ -14,7 +14,7 @@ DB_CONFIG = dict(
     database=os.environ.get("DB_NAME", "defaultdb"),
     charset="utf8mb4",
     collation="utf8mb4_unicode_ci",
-    ssl={"ssl": {}},
+   ssl_disabled=False,
 )
 
 # Login do relatório

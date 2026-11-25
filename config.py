@@ -1,7 +1,7 @@
 """"
 CONFIGURAÇÕES DO SISTEMA - edite só este arquivo.
 Quando o app.py for atualizado, estas configurações continuam.
-""""
+"""
 
 import os
 

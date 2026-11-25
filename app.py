@@ -9,7 +9,7 @@ Como rodar:
 """
 import io
 import hmac
-import secrets
+import time
 import datetime
 from functools import wraps
 import mysql.connector
@@ -18,7 +18,8 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 
-from config import DB_CONFIG, LOGIN_USUARIO, LOGIN_SENHA
+from config import (DB_CONFIG, LOGIN_USUARIO, LOGIN_SENHA,
+                    SECRET_KEY, CODIGO_ACESSO, EM_PRODUCAO)
 
 ORIGENS_VALIDAS = {
     "Instagram",
@@ -30,10 +31,38 @@ ORIGENS_VALIDAS = {
 GRUPOS_VALIDOS = {1, 2, 3, 4}
 
 app = Flask(__name__, static_folder="static")
-# Chave que protege o login. É gerada a cada vez que o servidor liga,
-# então, ao reiniciar o servidor, todos precisam entrar de novo.
-app.secret_key = secrets.token_hex(32)
+app.secret_key = SECRET_KEY
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = EM_PRODUCAO
+app.permanent_session_lifetime = datetime.timedelta(days=30)   # o celular lembra do código por 30 dias
+
+
+def acesso_ok():
+    """True se o código de acesso foi digitado neste celular (ou se o código está desligado)."""
+    return (not CODIGO_ACESSO) or bool(session.get("acesso"))
+
+
+def login_ok():
+    """True se o login do relatório ainda está valendo."""
+    return session.get("logado_ate", 0) > time.time()
+
+
+def exige_acesso(funcao):
+    @wraps(funcao)
+    def interna(*args, **kwargs):
+        if not acesso_ok():
+            return jsonify(erro="Digite o código de acesso.", tipo="acesso"), 401
+        return funcao(*args, **kwargs)
+    return interna
+
+
+def exige_login(funcao):
+    @wraps(funcao)
+    def interna(*args, **kwargs):
+        if not login_ok():
+            return jsonify(erro="Faça login para continuar.", tipo="login"), 401
+        return funcao(*args, **kwargs)
+    return interna
 
 
 def conectar():
@@ -88,6 +117,7 @@ def index():
 # CADASTRO DE VISITANTE
 # ---------------------------------------------------------------------
 @app.post("/api/visitantes")
+@exige_acesso
 def criar_visitante():
     dados = request.get_json(silent=True) or {}
     nome = limpar_texto(dados.get("nome"))
@@ -138,6 +168,7 @@ def criar_visitante():
 # CONTROLE DE MEMBROS (quantidade por grupo)
 # ---------------------------------------------------------------------
 @app.post("/api/membros")
+@exige_acesso
 def registrar_membros():
     dados = request.get_json(silent=True) or {}
     qtd = dados.get("quantidade")
@@ -161,6 +192,7 @@ def registrar_membros():
 # SUGESTÕES DE MEMBROS (aparecem enquanto a pessoa digita o nome)
 # ---------------------------------------------------------------------
 @app.get("/api/membros/busca")
+@exige_acesso
 def buscar_membros():
     q = limpar_texto(request.args.get("q"))
     if len(q) < 2:
@@ -183,20 +215,23 @@ def buscar_membros():
 
 
 # ---------------------------------------------------------------------
-# LOGIN (só o relatório é protegido)
+# ACESSO (código das meninas) E LOGIN DO RELATÓRIO
 # ---------------------------------------------------------------------
-def exige_login(funcao):
-    @wraps(funcao)
-    def interna(*args, **kwargs):
-        if not session.get("logado"):
-            return jsonify(erro="Faça login para continuar."), 401
-        return funcao(*args, **kwargs)
-    return interna
-
-
 @app.get("/api/sessao")
 def sessao():
-    return jsonify(logado=bool(session.get("logado")))
+    return jsonify(acesso=acesso_ok(), logado=login_ok())
+
+
+@app.post("/api/acesso")
+def acesso():
+    dados = request.get_json(silent=True) or {}
+    codigo = str(dados.get("codigo", "")).strip()
+    if CODIGO_ACESSO and hmac.compare_digest(codigo.encode(), CODIGO_ACESSO.encode()):
+        session["acesso"] = True
+        session.permanent = True
+        return jsonify(ok=True)
+    time.sleep(0.5)   # atrapalha quem tenta adivinhar
+    return jsonify(erro="Código incorreto."), 401
 
 
 @app.post("/api/login")
@@ -207,15 +242,24 @@ def login():
     usuario_ok = hmac.compare_digest(usuario.upper().encode(), LOGIN_USUARIO.upper().encode())
     senha_ok = hmac.compare_digest(senha.encode(), LOGIN_SENHA.encode())
     if usuario_ok and senha_ok:
-        session["logado"] = True
+        session["logado_ate"] = time.time() + 2 * 60 * 60   # vale por 2 horas
         return jsonify(ok=True)
+    time.sleep(0.5)
     return jsonify(erro="Usuário ou senha incorretos."), 401
 
 
 @app.post("/api/logout")
 def logout():
-    session.clear()
+    session.pop("logado_ate", None)
     return jsonify(ok=True)
+
+
+# Arquivo que faz o "Adicionar à tela inicial" funcionar como aplicativo
+@app.get("/sw.js")
+def service_worker():
+    resposta = send_from_directory("static", "sw.js", mimetype="application/javascript")
+    resposta.headers["Cache-Control"] = "no-cache"
+    return resposta
 
 
 # ---------------------------------------------------------------------

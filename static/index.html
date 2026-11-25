@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Trombetas e Festas — Sistema de Controle</title>
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#14284b">
+<link rel="apple-touch-icon" href="/static/icons/icon-180.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Trombetas">
 <style>
 :root{--navy:#14284b;--blue:#2457a6;--blue-d:#1b4585;--green:#2e7d5b;--bg:#f4f6f9;--card:#fff;--line:#dde3ec;--txt:#1c2535;--mut:#5d6b82;--err:#b3382c;--sel:#eef3fb;--h1:#14284b;--sw:248px;
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -45,6 +51,9 @@ h1{font-size:26px;margin:0 0 4px;color:var(--h1)}
 .sug button:last-child{border-bottom:0}
 .sug button:hover,.sug button.on{background:var(--sel)}
 .sug small{color:var(--mut);white-space:nowrap}
+#gate{position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
+#gate[hidden]{display:none}
+#gate .card{width:100%;max-width:420px}
 .choices{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:820px}
 .choice{all:unset;box-sizing:border-box;cursor:pointer;background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:36px 28px;display:flex;flex-direction:column;gap:14px;min-height:220px;justify-content:center}
 .choice:hover{border-color:var(--blue);background:var(--sel)}
@@ -142,6 +151,9 @@ main{margin-left:0;padding:80px 16px 40px}
 </section>
 </main>
 </div>
+<div id="gate" hidden><div class="card"><h1>Acesso restrito</h1><p class="sub">Digite o código de acesso do evento.</p>
+<div class="field" id="f-cod"><label class="l" for="cod">Código de acesso</label><input type="password" id="cod" autocomplete="off"><div class="err">Código incorreto.</div></div>
+<div class="actions"><button class="btn p" id="entrarCod">Entrar</button></div></div></div>
 <div class="toast" id="toast" role="status"></div>
 
 <script>
@@ -152,6 +164,7 @@ async function chamar(url,dados){
   try{r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(dados)})}
   catch(e){throw new Error("Sem conexão com o servidor.")}
   const j=await r.json().catch(()=>({}));
+  if(r.status===401&&j.tipo==="acesso")mostrarGate();
   if(!r.ok)throw new Error(j.erro||"Erro ao salvar.");
   return j;
 }
@@ -255,7 +268,7 @@ $("#xls").onclick=async()=>{
     if(q.length<2){seq++;fechar();return}
     const meu=++seq;
     t=setTimeout(async()=>{
-      try{const r=await fetch("/api/membros/busca?q="+encodeURIComponent(q));if(!r.ok)return;const j=await r.json();if(meu===seq)mostrar(j.membros)}catch(e){}
+      try{const r=await fetch("/api/membros/busca?q="+encodeURIComponent(q));if(r.status===401){mostrarGate();return}if(!r.ok)return;const j=await r.json();if(meu===seq)mostrar(j.membros)}catch(e){}
     },150);
   });
   box.addEventListener("pointerdown",e=>{const b=e.target.closest("button");if(!b)return;e.preventDefault();escolher(itens[+b.dataset.i].nome)});
@@ -268,6 +281,21 @@ $("#xls").onclick=async()=>{
   });
   inp.addEventListener("blur",()=>setTimeout(fechar,150));
 })();
+
+/* ===== Código de acesso (as meninas digitam uma vez em cada celular) ===== */
+function mostrarGate(){$("#gate").hidden=false;setTimeout(()=>$("#cod").focus(),50)}
+async function checarAcesso(){try{const r=await fetch("/api/sessao");const j=await r.json();if(!j.acesso)mostrarGate()}catch(e){}}
+$("#entrarCod").onclick=async()=>{
+  const btn=$("#entrarCod");btn.disabled=true;
+  try{await chamar("/api/acesso",{codigo:$("#cod").value.trim()});bad("#f-cod",false);$("#cod").value="";$("#gate").hidden=true}
+  catch(err){bad("#f-cod",true)}
+  btn.disabled=false;
+};
+$("#cod").onkeydown=e=>{if(e.key==="Enter")$("#entrarCod").click()};
+checarAcesso();
+
+/* ===== Aplicativo (Adicionar à tela inicial) ===== */
+if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}))}
 
 /* ===== Brilhos dourados da capa ===== */
 (function(){const c=$("#capa");for(let k=0;k<14;k++){const s=document.createElement("i");s.style.left=(4+Math.random()*92)+"%";s.style.top=(8+Math.random()*80)+"%";s.style.animationDelay=(Math.random()*5)+"s";s.style.animationDuration=(3.5+Math.random()*3)+"s";c.appendChild(s)}})();

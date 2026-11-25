@@ -1,7 +1,7 @@
-"""
+""""
 CONFIGURAÇÕES DO SISTEMA - edite só este arquivo.
-Quando o app.py for atualizado, estas configurações continuam as mesmas.
-"""
+Quando o app.py for atualizado, estas configurações continuam.
+""""
 
 import os
 
@@ -16,7 +16,12 @@ DB_CONFIG = dict(
     collation="utf8mb4_unicode_ci",
     ssl={"ssl": {}},
 )
+
 # Login do relatório
 LOGIN_USUARIO = "ADM"   # não diferencia maiúsculas de minúsculas
 LOGIN_SENHA = "ADM"     # diferencia maiúsculas de minúsculas
 
+# Segurança e ambiente
+SECRET_KEY = os.environ.get("SECRET_KEY", "chave-secreta-trombetas-festas")
+CODIGO_ACESSO = os.environ.get("CODIGO_ACESSO", "1234")
+EM_PRODUCAO = True

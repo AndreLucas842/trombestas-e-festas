@@ -154,7 +154,9 @@ def criar_visitante():
         nome_grupo = None
         if grupo_id:
             cur.execute("SELECT nome FROM grupos WHERE id = %s", (grupo_id,))
-            nome_grupo = cur.fetchone()[0]
+            row = cur.fetchone()
+            if row:
+                nome_grupo = row[0]
         return jsonify(ok=True, grupo=nome_grupo, a_conferir=bool(a_conferir))
     finally:
         conn.close()
@@ -200,7 +202,7 @@ def buscar_membros():
         # nomes que começam com o texto OU que têm alguma palavra começando com ele
         cur.execute(
             """SELECT m.nome, g.nome
-               FROM membros m JOIN grupos g ON g.id = m.grupo_id
+               FROM membros m LEFT JOIN grupos g ON g.id = m.grupo_id
                WHERE m.nome LIKE %s OR m.nome LIKE %s
                ORDER BY (m.nome LIKE %s) DESC, m.nome LIMIT 8""",
             (texto + "%", "% " + texto + "%", texto + "%"),

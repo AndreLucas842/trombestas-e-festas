@@ -180,7 +180,7 @@ function go(p){
 document.addEventListener("click",e=>{const b=e.target.closest("[data-p]");if(b)go(b.dataset.p)});
 $("#burger").onclick=()=>$("#side").classList.toggle("open");
 
-let tt;function toast(m,tipo){const t=$("#toast");t.textContent=m;t.className="toast show"+(tipo===true?" info":tipo?" "+tipo:"");clearTimeout(tt);tt=setTimeout(()=>t.className="toast",3500)}
+let tt;function toast(m,tipo){const t=$("#toast");if(!t){console.log(m);return;}t.textContent=m;t.className="toast show"+(tipo===true?" info":tipo?" "+tipo:"");clearTimeout(tt);tt=setTimeout(()=>t.className="toast",3500)}
 function bad(id,on){$(id).classList.toggle("bad",on);return on}
 
 /* ===== Visitantes ===== */

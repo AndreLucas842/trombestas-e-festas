@@ -37,10 +37,6 @@ app.config["SESSION_COOKIE_SECURE"] = EM_PRODUCAO
 app.permanent_session_lifetime = datetime.timedelta(days=30)   # o celular lembra do código por 30 dias
 
 
-def acesso_ok():
-    """True se o código de acesso foi digitado neste celular (ou se o código está desligado)."""
-    return (not CODIGO_ACESSO) or bool(session.get("acesso"))
-
 
 def login_ok():
     """True se o login do relatório ainda está valendo."""

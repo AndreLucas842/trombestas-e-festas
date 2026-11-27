@@ -112,6 +112,8 @@ def index():
 # ---------------------------------------------------------------------
 # CADASTRO DE VISITANTE
 # ---------------------------------------------------------------------
+CLASSES_VALIDAS = {"Cias", "Jovens", "Senhoras", "Varão"}
+
 @app.post("/api/visitantes")
 @exige_acesso
 def criar_visitante():
@@ -120,6 +122,7 @@ def criar_visitante():
     origem = limpar_texto(dados.get("origem"))
     origem_outro = limpar_texto(dados.get("origem_outro"))
     convidado_por = limpar_texto(dados.get("convidado_por"))
+    classe = limpar_texto(dados.get("classe"))
 
     if not nome:
         return jsonify(erro="Informe o nome do visitante."), 400
@@ -129,6 +132,8 @@ def criar_visitante():
         return jsonify(erro="Escreva como a pessoa soube do evento."), 400
     if origem != "Outro":
         origem_outro = ""
+    if classe not in CLASSES_VALIDAS:
+        return jsonify(erro="Selecione a classe do visitante."), 400
 
     conn = conectar()
     try:
@@ -145,9 +150,9 @@ def criar_visitante():
 
         cur.execute(
             """INSERT INTO visitantes
-               (nome, origem, origem_outro, convidado_por, membro_id, grupo_id, grupo_a_conferir)
-               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
-            (nome, origem, origem_outro or None, convidado_por or None, membro_id, grupo_id, a_conferir),
+               (nome, origem, origem_outro, convidado_por, classe, membro_id, grupo_id, grupo_a_conferir)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (nome, origem, origem_outro or None, convidado_por or None, classe, membro_id, grupo_id, a_conferir),
         )
         conn.commit()
 
@@ -160,7 +165,6 @@ def criar_visitante():
         return jsonify(ok=True, grupo=nome_grupo, a_conferir=bool(a_conferir))
     finally:
         conn.close()
-
 
 # ---------------------------------------------------------------------
 # CONTROLE DE MEMBROS (quantidade por grupo)
@@ -300,9 +304,10 @@ def relatorio_excel():
         cur.execute("SELECT origem, COUNT(*) FROM visitantes GROUP BY origem ORDER BY origem")
         por_origem = cur.fetchall()
         cur.execute(
-            """SELECT visitante, origem, origem_outro, membro_digitado, membro_encontrado,
-                      grupo, a_conferir, criado_em
-               FROM vw_relatorio_visitantes"""
+            """SELECT vw.visitante, vw.origem, vw.origem_outro, vw.membro_digitado, vw.membro_encontrado,
+                      vw.grupo, vw.a_conferir, v.classe
+               FROM vw_relatorio_visitantes vw
+               LEFT JOIN visitantes v ON v.nome = vw.visitante"""
         )
         visitantes = cur.fetchall()
     finally:
@@ -338,11 +343,10 @@ def relatorio_excel():
     # --- Aba Visitantes ---
     wv = wb.create_sheet("Visitantes")
     wv.append(["Visitante", "Origem", "Detalhe do \"Outro\"", "Membro digitado", "Membro encontrado",
-               "Grupo", "A conferir", "Data/Hora"])
+               "Grupo", "A conferir", "Classe"])
     estilizar_cabecalho(wv, 1, 8)
     for linha in visitantes:
         wv.append([x if x is not None else "" for x in linha])
-        wv.cell(row=wv.max_row, column=8).number_format = "dd/mm/yyyy hh:mm"
     wv.freeze_panes = "A2"
     ajustar_larguras(wv)
 
@@ -354,7 +358,6 @@ def relatorio_excel():
         buf, as_attachment=True, download_name=nome_arquivo,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
-
 
 @app.errorhandler(mysql.connector.Error)
 def erro_banco(e):

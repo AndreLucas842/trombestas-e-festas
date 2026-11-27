@@ -127,8 +127,10 @@ main{margin-left:0;padding:80px 16px 40px}
   </div>
   <button type="button" class="btn" id="btn-add-nome" style="margin-top:8px; width:fit-content;">+ Adicionar outro nome</button>
   <div class="err">Informe o nome do visitante.</div>
-</div><div class="field" id="f-origem"><label class="l">Como soube do evento?</label><div class="opts" id="origens"></div><div class="err">Selecione como o visitante soube do evento.</div></div>
+</div>
+<div class="field" id="f-origem"><label class="l">Como soube do evento?</label><div class="opts" id="origens"></div><div class="err">Selecione como o visitante soube do evento.</div></div>
 <div class="field" id="f-outro" hidden><label class="l" for="outro">Qual foi a origem?</label><input type="text" id="outro" placeholder="Escreva como a pessoa soube do evento." autocomplete="off"><div class="err">Escreva como a pessoa soube do evento.</div></div>
+<div class="field" id="f-classe"><label class="l">Classe</label><div class="opts" id="classes"></div><div class="err">Selecione a classe do visitante.</div></div>
 <div class="field" style="position:relative"><label class="l" for="conv">Nome do membro que convidou <em>(se houver)</em></label><input type="text" id="conv" placeholder="Digite o nome do membro que convidou." autocomplete="off" role="combobox" aria-autocomplete="list"><div class="sug" id="sug" role="listbox" hidden></div></div>
 <div class="actions"><button class="btn" id="limpar">Limpar formulário</button><button class="btn p" id="cadastrar">Cadastrar visitante</button></div>
 </div>
@@ -190,11 +192,18 @@ let tt;function toast(m,tipo){const t=$("#toast");if(!t){console.log(m);return;}
 function bad(id,on){$(id).classList.toggle("bad",on);return on}
 
 /* ===== Visitantes ===== */
+const CLASSES=["Cias","Jovens","Senhoras","Varão"];
 let origem="";
+let classe="";
+
 $("#origens").innerHTML=ORIGENS.map(o=>`<button type="button" class="opt" data-o="${o}"><i></i>${o}</button>`).join("");
 $("#origens").onclick=e=>{const b=e.target.closest(".opt");if(!b)return;origem=b.dataset.o;
-  document.querySelectorAll(".opt").forEach(x=>x.classList.toggle("sel",x===b));$("#f-origem").classList.remove("bad");
+  document.querySelectorAll("#origens .opt").forEach(x=>x.classList.toggle("sel",x===b));$("#f-origem").classList.remove("bad");
   const outro=origem==="Outro";$("#f-outro").hidden=!outro;if(outro)$("#outro").focus();else{$("#outro").value="";bad("#f-outro",false)}};
+
+$("#classes").innerHTML=CLASSES.map(c=>`<button type="button" class="opt" data-c="${c}"><i></i>${c}</button>`).join("");
+$("#classes").onclick=e=>{const b=e.target.closest(".opt");if(!b)return;classe=b.dataset.c;
+  document.querySelectorAll("#classes .opt").forEach(x=>x.classList.toggle("sel",x===b));$("#f-classe").classList.remove("bad")};
 
 function criarLinhaExtraNome(){
   const wrap=document.createElement("div");
@@ -230,7 +239,7 @@ function limpar(){
   $("#sug").hidden=true;
   $("#nome").value="";
   document.querySelectorAll("#lista-nomes .nome-extra").forEach(el=>el.remove());
-  $("#conv").value="";$("#outro").value="";$("#f-outro").hidden=true;origem="";
+  $("#conv").value="";$("#outro").value="";$("#f-outro").hidden=true;origem="";classe="";
   document.querySelectorAll(".opt").forEach(x=>x.classList.remove("sel"));
   document.querySelectorAll("#visitantes .field").forEach(f=>f.classList.remove("bad"));
 }
@@ -240,13 +249,13 @@ $("#cadastrar").onclick=async()=>{
   const nomes=getNomes();
   const origem_outro=$("#outro").value.trim();
   const convidado_por=$("#conv").value.trim();
-  const e=[bad("#f-nome",nomes.length===0),bad("#f-origem",!origem),bad("#f-outro",origem==="Outro"&&!origem_outro)];
+  const e=[bad("#f-nome",nomes.length===0),bad("#f-origem",!origem),bad("#f-outro",origem==="Outro"&&!origem_outro),bad("#f-classe",!classe)];
   if(e.some(Boolean)){toast("Revise os campos destacados.",true);return}
   const btn=$("#cadastrar");btn.disabled=true;
   try{
     let ultimo=null;
     for(const nome of nomes){
-      ultimo=await api.criarVisitante({nome,origem,origem_outro,convidado_por});
+      ultimo=await api.criarVisitante({nome,origem,origem_outro,convidado_por,classe});
     }
     limpar();
     const qtd=nomes.length;
@@ -256,7 +265,6 @@ $("#cadastrar").onclick=async()=>{
   }catch(err){toast(err.message,"erro")}
   btn.disabled=false;
 };
-
 /* ===== Membros ===== */
 $("#reg").onclick=async()=>{
   const v=$("#qtd").value.trim(),n=Number(v);

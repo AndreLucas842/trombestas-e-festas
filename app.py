@@ -43,10 +43,14 @@ def login_ok():
     return session.get("logado_ate", 0) > time.time()
 
 
+def tem_acesso():
+    return bool(session.get("acesso"))
+
+
 def exige_acesso(funcao):
     @wraps(funcao)
     def interna(*args, **kwargs):
-        if not acesso():
+        if not tem_acesso():
             return jsonify(erro="Digite o código de acesso.", tipo="acesso"), 401
         return funcao(*args, **kwargs)
     return interna
@@ -221,11 +225,11 @@ def buscar_membros():
 # ---------------------------------------------------------------------
 @app.get("/api/sessao")
 def sessao():
-    return jsonify(acesso=acesso(), logado=login_ok())
+    return jsonify(acesso=tem_acesso(), logado=login_ok())
 
 
 @app.post("/api/acesso")
-def acesso():
+def liberar_acesso():
     dados = request.get_json(silent=True) or {}
     codigo = str(dados.get("codigo", "")).strip()
     if CODIGO_ACESSO and hmac.compare_digest(codigo.encode(), CODIGO_ACESSO.encode()):
@@ -234,7 +238,6 @@ def acesso():
         return jsonify(ok=True)
     time.sleep(0.5)   # atrapalha quem tenta adivinhar
     return jsonify(erro="Código incorreto."), 401
-
 
 @app.post("/api/login")
 def login():
@@ -304,10 +307,9 @@ def relatorio_excel():
         cur.execute("SELECT origem, COUNT(*) FROM visitantes GROUP BY origem ORDER BY origem")
         por_origem = cur.fetchall()
         cur.execute(
-            """SELECT vw.visitante, vw.origem, vw.origem_outro, vw.membro_digitado, vw.membro_encontrado,
-                      vw.grupo, vw.a_conferir, v.classe
-               FROM vw_relatorio_visitantes vw
-               LEFT JOIN visitantes v ON v.nome = vw.visitante"""
+            """SELECT visitante, origem, origem_outro, membro_digitado, membro_encontrado,
+                      grupo, a_conferir, criado_em
+               FROM vw_relatorio_visitantes"""
         )
         visitantes = cur.fetchall()
     finally:
@@ -343,10 +345,11 @@ def relatorio_excel():
     # --- Aba Visitantes ---
     wv = wb.create_sheet("Visitantes")
     wv.append(["Visitante", "Origem", "Detalhe do \"Outro\"", "Membro digitado", "Membro encontrado",
-               "Grupo", "A conferir", "Classe"])
+               "Grupo", "A conferir", "Data/Hora"])
     estilizar_cabecalho(wv, 1, 8)
     for linha in visitantes:
         wv.append([x if x is not None else "" for x in linha])
+        wv.cell(row=wv.max_row, column=8).number_format = "dd/mm/yyyy hh:mm"
     wv.freeze_panes = "A2"
     ajustar_larguras(wv)
 
@@ -358,6 +361,7 @@ def relatorio_excel():
         buf, as_attachment=True, download_name=nome_arquivo,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
 
 @app.errorhandler(mysql.connector.Error)
 def erro_banco(e):

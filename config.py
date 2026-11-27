@@ -23,5 +23,5 @@ LOGIN_SENHA = "ADM"     # diferencia maiúsculas de minúsculas
 
 # Segurança e ambiente
 SECRET_KEY = os.environ.get("SECRET_KEY", "chave-secreta-trombetas-festas")
-CODIGO_ACESSO = os.environ.get("CODIGO_ACESSO", "1234")
+CODIGO_ACESSO = os.environ.get("CODIGO_ACESSO", "")
 EM_PRODUCAO = True

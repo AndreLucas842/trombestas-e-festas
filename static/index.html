@@ -337,15 +337,20 @@ $("#xls").onclick=async()=>{
 })();
 
 /* ===== Código de acesso (as meninas digitam uma vez em cada celular) ===== */
-function mostrarGate(){$("#gate").hidden=false;setTimeout(()=>$("#cod").focus(),50)}
+/* ===== Código de acesso (as meninas digitam uma vez em cada celular) ===== */
+function mostrarGate(){const g=$("#gate"),c=$("#cod");if(g)g.hidden=false;if(c)setTimeout(()=>c.focus(),50)}
 async function checarAcesso(){try{const r=await fetch("/api/sessao");const j=await r.json();if(!j.acesso)mostrarGate()}catch(e){}}
-$("#entrarCod").onclick=async()=>{
-  const btn=$("#entrarCod");btn.disabled=true;
-  try{await chamar("/api/acesso",{codigo:$("#cod").value.trim()});bad("#f-cod",false);$("#cod").value="";$("#gate").hidden=true}
-  catch(err){bad("#f-cod",true)}
-  btn.disabled=false;
-};
-$("#cod").onkeydown=e=>{if(e.key==="Enter")$("#entrarCod").click()};
+const btnCod=$("#entrarCod");
+if(btnCod){
+  btnCod.onclick=async()=>{
+    btnCod.disabled=true;
+    try{await chamar("/api/acesso",{codigo:$("#cod").value.trim()});bad("#f-cod",false);$("#cod").value="";if($("#gate"))$("#gate").hidden=true}
+    catch(err){bad("#f-cod",true)}
+    btnCod.disabled=false;
+  };
+}
+const inpCod=$("#cod");
+if(inpCod){inpCod.onkeydown=e=>{if(e.key==="Enter"&&btnCod)btnCod.click()}}
 checarAcesso();
 
 /* ===== Aplicativo (Adicionar à tela inicial) ===== */

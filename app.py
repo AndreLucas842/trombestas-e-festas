@@ -43,14 +43,10 @@ def login_ok():
     return session.get("logado_ate", 0) > time.time()
 
 
-def tem_acesso():
-    return bool(session.get("acesso"))
-
-
 def exige_acesso(funcao):
     @wraps(funcao)
     def interna(*args, **kwargs):
-        if not tem_acesso():
+        if not acesso():
             return jsonify(erro="Digite o código de acesso.", tipo="acesso"), 401
         return funcao(*args, **kwargs)
     return interna
@@ -116,8 +112,6 @@ def index():
 # ---------------------------------------------------------------------
 # CADASTRO DE VISITANTE
 # ---------------------------------------------------------------------
-CLASSES_VALIDAS = {"Cias", "Jovens", "Senhoras", "Varão"}
-
 @app.post("/api/visitantes")
 @exige_acesso
 def criar_visitante():
@@ -126,7 +120,6 @@ def criar_visitante():
     origem = limpar_texto(dados.get("origem"))
     origem_outro = limpar_texto(dados.get("origem_outro"))
     convidado_por = limpar_texto(dados.get("convidado_por"))
-    classe = limpar_texto(dados.get("classe"))
 
     if not nome:
         return jsonify(erro="Informe o nome do visitante."), 400
@@ -136,8 +129,6 @@ def criar_visitante():
         return jsonify(erro="Escreva como a pessoa soube do evento."), 400
     if origem != "Outro":
         origem_outro = ""
-    if classe not in CLASSES_VALIDAS:
-        return jsonify(erro="Selecione a classe do visitante."), 400
 
     conn = conectar()
     try:
@@ -154,9 +145,9 @@ def criar_visitante():
 
         cur.execute(
             """INSERT INTO visitantes
-               (nome, origem, origem_outro, convidado_por, classe, membro_id, grupo_id, grupo_a_conferir)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
-            (nome, origem, origem_outro or None, convidado_por or None, classe, membro_id, grupo_id, a_conferir),
+               (nome, origem, origem_outro, convidado_por, membro_id, grupo_id, grupo_a_conferir)
+               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+            (nome, origem, origem_outro or None, convidado_por or None, membro_id, grupo_id, a_conferir),
         )
         conn.commit()
 
@@ -169,6 +160,7 @@ def criar_visitante():
         return jsonify(ok=True, grupo=nome_grupo, a_conferir=bool(a_conferir))
     finally:
         conn.close()
+
 
 # ---------------------------------------------------------------------
 # CONTROLE DE MEMBROS (quantidade por grupo)
@@ -225,11 +217,11 @@ def buscar_membros():
 # ---------------------------------------------------------------------
 @app.get("/api/sessao")
 def sessao():
-    return jsonify(acesso=tem_acesso(), logado=login_ok())
+    return jsonify(acesso=acesso(), logado=login_ok())
 
 
 @app.post("/api/acesso")
-def liberar_acesso():
+def acesso():
     dados = request.get_json(silent=True) or {}
     codigo = str(dados.get("codigo", "")).strip()
     if CODIGO_ACESSO and hmac.compare_digest(codigo.encode(), CODIGO_ACESSO.encode()):
@@ -238,6 +230,7 @@ def liberar_acesso():
         return jsonify(ok=True)
     time.sleep(0.5)   # atrapalha quem tenta adivinhar
     return jsonify(erro="Código incorreto."), 401
+
 
 @app.post("/api/login")
 def login():

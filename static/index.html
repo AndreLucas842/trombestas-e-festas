@@ -120,17 +120,9 @@ main{margin-left:0;padding:80px 16px 40px}
 <section class="page" id="visitantes">
 <h1>Cadastrar visitante</h1><p class="sub">Registre as informações das pessoas que participaram do evento.</p>
 <div class="card form">
-<div class="field" id="f-nome">
-  <label class="l" for="nome">Nome</label>
-  <div id="lista-nomes" style="display:flex; flex-direction:column; gap:8px;">
-    <input type="text" id="nome" class="nome-visitante" placeholder="Digite o nome do visitante." autocomplete="off">
-  </div>
-  <button type="button" class="btn" id="btn-add-nome" style="margin-top:8px; width:fit-content;">+ Adicionar outro nome</button>
-  <div class="err">Informe o nome do visitante.</div>
-</div>
+<div class="field" id="f-nome"><label class="l" for="nome">Nome e sobrenome</label><input type="text" id="nome" placeholder="Digite o nome e sobrenome do visitante." autocomplete="off"><div class="err">Informe o nome e o sobrenome.</div></div>
 <div class="field" id="f-origem"><label class="l">Como soube do evento?</label><div class="opts" id="origens"></div><div class="err">Selecione como o visitante soube do evento.</div></div>
 <div class="field" id="f-outro" hidden><label class="l" for="outro">Qual foi a origem?</label><input type="text" id="outro" placeholder="Escreva como a pessoa soube do evento." autocomplete="off"><div class="err">Escreva como a pessoa soube do evento.</div></div>
-<div class="field" id="f-classe"><label class="l">Classe</label><div class="opts" id="classes"></div><div class="err">Selecione a classe do visitante.</div></div>
 <div class="field" style="position:relative"><label class="l" for="conv">Nome do membro que convidou <em>(se houver)</em></label><input type="text" id="conv" placeholder="Digite o nome do membro que convidou." autocomplete="off" role="combobox" aria-autocomplete="list"><div class="sug" id="sug" role="listbox" hidden></div></div>
 <div class="actions"><button class="btn" id="limpar">Limpar formulário</button><button class="btn p" id="cadastrar">Cadastrar visitante</button></div>
 </div>
@@ -192,79 +184,29 @@ let tt;function toast(m,tipo){const t=$("#toast");if(!t){console.log(m);return;}
 function bad(id,on){$(id).classList.toggle("bad",on);return on}
 
 /* ===== Visitantes ===== */
-const CLASSES=["Cias","Jovens","Senhoras","Varão"];
 let origem="";
-let classe="";
-
 $("#origens").innerHTML=ORIGENS.map(o=>`<button type="button" class="opt" data-o="${o}"><i></i>${o}</button>`).join("");
 $("#origens").onclick=e=>{const b=e.target.closest(".opt");if(!b)return;origem=b.dataset.o;
-  document.querySelectorAll("#origens .opt").forEach(x=>x.classList.toggle("sel",x===b));$("#f-origem").classList.remove("bad");
+  document.querySelectorAll(".opt").forEach(x=>x.classList.toggle("sel",x===b));$("#f-origem").classList.remove("bad");
   const outro=origem==="Outro";$("#f-outro").hidden=!outro;if(outro)$("#outro").focus();else{$("#outro").value="";bad("#f-outro",false)}};
-
-$("#classes").innerHTML=CLASSES.map(c=>`<button type="button" class="opt" data-c="${c}"><i></i>${c}</button>`).join("");
-$("#classes").onclick=e=>{const b=e.target.closest(".opt");if(!b)return;classe=b.dataset.c;
-  document.querySelectorAll("#classes .opt").forEach(x=>x.classList.toggle("sel",x===b));$("#f-classe").classList.remove("bad")};
-
-function criarLinhaExtraNome(){
-  const wrap=document.createElement("div");
-  wrap.className="nome-extra";
-  wrap.style.cssText="display:flex; gap:6px; align-items:center;";
-  const inp=document.createElement("input");
-  inp.type="text";
-  inp.className="nome-visitante";
-  inp.placeholder="Digite o nome do visitante.";
-  inp.autocomplete="off";
-  inp.style.flex="1";
-  const del=document.createElement("button");
-  del.type="button";
-  del.className="btn";
-  del.textContent="✕";
-  del.title="Remover este nome";
-  del.onclick=()=>wrap.remove();
-  wrap.append(inp,del);
-  return wrap;
-}
-
-$("#btn-add-nome").onclick=()=>{
-  const extra=criarLinhaExtraNome();
-  $("#lista-nomes").appendChild(extra);
-  extra.querySelector("input").focus();
-};
-
-function getNomes(){
-  return [...document.querySelectorAll("#lista-nomes .nome-visitante")].map(i=>i.value.trim()).filter(Boolean);
-}
-
-function limpar(){
-  $("#sug").hidden=true;
-  $("#nome").value="";
-  document.querySelectorAll("#lista-nomes .nome-extra").forEach(el=>el.remove());
-  $("#conv").value="";$("#outro").value="";$("#f-outro").hidden=true;origem="";classe="";
+function limpar(){$("#sug").hidden=true;$("#nome").value="";$("#conv").value="";$("#outro").value="";$("#f-outro").hidden=true;origem="";
   document.querySelectorAll(".opt").forEach(x=>x.classList.remove("sel"));
-  document.querySelectorAll("#visitantes .field").forEach(f=>f.classList.remove("bad"));
-}
+  document.querySelectorAll("#visitantes .field").forEach(f=>f.classList.remove("bad"))}
 $("#limpar").onclick=limpar;
-
 $("#cadastrar").onclick=async()=>{
-  const nomes=getNomes();
-  const origem_outro=$("#outro").value.trim();
-  const convidado_por=$("#conv").value.trim();
-  const e=[bad("#f-nome",nomes.length===0),bad("#f-origem",!origem),bad("#f-outro",origem==="Outro"&&!origem_outro),bad("#f-classe",!classe)];
+  const nome=$("#nome").value.trim();
+  const e=[bad("#f-nome",nome.split(/\s+/).filter(Boolean).length<2),bad("#f-origem",!origem),bad("#f-outro",origem==="Outro"&&!$("#outro").value.trim())];
   if(e.some(Boolean)){toast("Revise os campos destacados.",true);return}
   const btn=$("#cadastrar");btn.disabled=true;
   try{
-    let ultimo=null;
-    for(const nome of nomes){
-      ultimo=await api.criarVisitante({nome,origem,origem_outro,convidado_por,classe});
-    }
+    const r=await api.criarVisitante({nome,origem,origem_outro:$("#outro").value.trim(),convidado_por:$("#conv").value.trim()});
     limpar();
-    const qtd=nomes.length;
-    const msgBase=qtd>1?`${qtd} visitantes cadastrados.`:"Visitante cadastrado.";
-    toast(ultimo?.grupo?`${msgBase} ${ultimo.grupo}.`:`${msgBase}${ultimo?.a_conferir?" Grupo a conferir.":""}`);
+    toast(r.grupo?"Visitante cadastrado. "+r.grupo+".":"Visitante cadastrado."+(r.a_conferir?" Grupo a conferir.":""));
     $("#nome").focus();
   }catch(err){toast(err.message,"erro")}
   btn.disabled=false;
 };
+
 /* ===== Membros ===== */
 $("#reg").onclick=async()=>{
   const v=$("#qtd").value.trim(),n=Number(v);
@@ -337,20 +279,15 @@ $("#xls").onclick=async()=>{
 })();
 
 /* ===== Código de acesso (as meninas digitam uma vez em cada celular) ===== */
-/* ===== Código de acesso (as meninas digitam uma vez em cada celular) ===== */
-function mostrarGate(){const g=$("#gate"),c=$("#cod");if(g)g.hidden=false;if(c)setTimeout(()=>c.focus(),50)}
+function mostrarGate(){$("#gate").hidden=false;setTimeout(()=>$("#cod").focus(),50)}
 async function checarAcesso(){try{const r=await fetch("/api/sessao");const j=await r.json();if(!j.acesso)mostrarGate()}catch(e){}}
-const btnCod=$("#entrarCod");
-if(btnCod){
-  btnCod.onclick=async()=>{
-    btnCod.disabled=true;
-    try{await chamar("/api/acesso",{codigo:$("#cod").value.trim()});bad("#f-cod",false);$("#cod").value="";if($("#gate"))$("#gate").hidden=true}
-    catch(err){bad("#f-cod",true)}
-    btnCod.disabled=false;
-  };
-}
-const inpCod=$("#cod");
-if(inpCod){inpCod.onkeydown=e=>{if(e.key==="Enter"&&btnCod)btnCod.click()}}
+$("#entrarCod").onclick=async()=>{
+  const btn=$("#entrarCod");btn.disabled=true;
+  try{await chamar("/api/acesso",{codigo:$("#cod").value.trim()});bad("#f-cod",false);$("#cod").value="";$("#gate").hidden=true}
+  catch(err){bad("#f-cod",true)}
+  btn.disabled=false;
+};
+$("#cod").onkeydown=e=>{if(e.key==="Enter")$("#entrarCod").click()};
 checarAcesso();
 
 /* ===== Aplicativo (Adicionar à tela inicial) ===== */
